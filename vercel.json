@@ -1,7 +1,13 @@
 {
-  "build": {
-    "vite": {
-      "outputDir": "dist"
+{
+  "builds": [
+    {
+      "src": "src/main.js",  // Your entry file
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"  // The default Vite output directory
+      }
     }
-  }
+  ]
 }
+
