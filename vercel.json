@@ -2,10 +2,10 @@
 {
   "builds": [
     {
-      "src": "src/main.js",  // Your entry file
+      "src": "src/main.js",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist"  // The default Vite output directory
+        "distDir": "dist" 
       }
     }
   ]
