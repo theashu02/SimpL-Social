@@ -5,6 +5,8 @@ import HomePage from "./pages/home/HomePage";
 import Sidebar from "./components/common/Sidebar";
 import RightPanel from "./components/common/RightPanel";
 import NotificationPage from "./pages/notification/NotificationPage";
+import RoomPage from "./pages/room/RoomPage";
+import Redirect from "./pages/redirect/Redirect";
 import ProfilePage from "./pages/profile/ProfilePage";
 import { Toaster } from "react-hot-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -64,6 +66,14 @@ function App() {
           <Route
             path="/profile/:username"
             element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/RI"
+            element={authUser ? <Redirect /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/room/:roomId"
+            element={authUser ? <RoomPage /> : <Navigate to="/login" />}
           />
         </Routes>
         {authUser && <RightPanel />}
