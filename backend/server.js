@@ -3,6 +3,8 @@ import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import { v2 as cloudinary } from "cloudinary";
+import { Server } from "socket.io";
+import http from "http";
 
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
@@ -10,6 +12,7 @@ import postRoutes from "./routes/post.route.js";
 import notificationRoutes from "./routes/notification.route.js";
 
 import connectMongoDB from "./db/connectMongoDB.js";
+import { initializeSocketIO } from "./socket/socket.js";
 
 dotenv.config();
 
@@ -20,6 +23,16 @@ cloudinary.config({
 });
 
 const app = express();
+const httpServer = http.createServer(app);
+const io = new Server(httpServer, {
+	cors: {
+		origin: ["http://localhost:3000", "http://localhost:5173"],
+		methods: ["GET", "POST"],
+	},
+});
+
+initializeSocketIO(io);
+
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
@@ -42,7 +55,7 @@ if (process.env.NODE_ENV === "production") {
 	});
 }
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
 	console.log(`Server is running on port ${PORT}`);
 	connectMongoDB();
 });

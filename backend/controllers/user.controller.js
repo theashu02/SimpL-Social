@@ -4,6 +4,7 @@ import { v2 as cloudinary } from "cloudinary";
 // models
 import Notification from "../models/notification.model.js";
 import User from "../models/user.model.js";
+import { getSockets, io } from "../socket/socket.js";
 
 export const getUserProfile = async (req, res) => {
 	const { username } = req.params;
@@ -51,6 +52,11 @@ export const followUnfollowUser = async (req, res) => {
 			});
 
 			await newNotification.save();
+			// Emit socket event
+			const receiverSocketId = getSockets(userToModify._id.toString());
+			if (receiverSocketId) {
+				io.to(receiverSocketId).emit("newNotification", newNotification);
+			}
 
 			res.status(200).json({ message: "User followed successfully" });
 		}

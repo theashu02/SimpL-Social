@@ -7,9 +7,11 @@ import { BiLogOut } from "react-icons/bi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { BsCameraVideo } from "react-icons/bs";
+import { useSocketContext } from "../../context/SocketContext.jsx";
 
 const Sidebar = () => {
   const queryClient = useQueryClient();
+  const { unreadNotificationCount } = useSocketContext();
 
   const { mutate: logout } = useMutation({
     mutationFn: async () => {
@@ -62,10 +64,15 @@ const Sidebar = () => {
           <li className="flex justify-center md:justify-start">
             <Link
               to="/notifications"
-              className="flex gap-3 items-center hover:bg-stone-600 transition-all rounded-full duration-300 py-2 pl-2 pr-4 max-w-fit cursor-pointer"
+              className="flex gap-3 items-center hover:bg-stone-600 transition-all rounded-full duration-300 py-2 pl-2 pr-4 max-w-fit cursor-pointer relative"
             >
               <RiNotification4Line className="w-6 h-6" />
               <span className="text-lg hidden md:block">Notifications</span>
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full transform translate-x-1/2 -translate-y-1/2">
+                  {unreadNotificationCount}
+                </span>
+              )}
             </Link>
           </li>
 

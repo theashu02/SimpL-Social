@@ -2,6 +2,7 @@ import Notification from "../models/notification.model.js";
 import Post from "../models/post.model.js";
 import User from "../models/user.model.js";
 import { v2 as cloudinary } from "cloudinary";
+import { getSockets, io } from "../socket/socket.js";
 
 export const createPost = async (req, res) => {
 	try {
@@ -119,6 +120,11 @@ export const likeUnlikePost = async (req, res) => {
 				type: "like",
 			});
 			await notification.save();
+
+			const receiverSocketId = getSockets(post.user.toString());
+			if (receiverSocketId) {
+				io.to(receiverSocketId).emit("newNotification", notification);
+			}
 
 			const updatedLikes = post.likes;
 			res.status(200).json(updatedLikes);

@@ -8,11 +8,14 @@ import NotificationPage from "./pages/notification/NotificationPage";
 import RoomPage from "./pages/room/RoomPage";
 import Redirect from "./pages/redirect/Redirect";
 import ProfilePage from "./pages/profile/ProfilePage";
-import { Toaster } from "react-hot-toast";
-import { useQuery } from "@tanstack/react-query";
+import { Toaster, toast } from "react-hot-toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import LoadingSpinner from "./components/common/LoadingSpinner";
+import { useEffect } from "react";
+import { useSocketContext } from "./context/SocketContext.jsx";
 
 function App() {
+  const queryClient = useQueryClient();
   const {
     data: authUser,
     isLoading
@@ -24,7 +27,7 @@ function App() {
         const data = await res.json();
         if(data.error) return null;
         if (!res.ok) {
-          throw new Error(data.error || "Somthing went wrong");
+          throw new Error(data.error || "Something went wrong");
         }
         console.log("authUser is here:", data);
         return data;
@@ -32,7 +35,26 @@ function App() {
         throw new Error(error);
       }
     },
+    retry: false,
   });
+
+  const { socket, latestNotification } = useSocketContext();
+
+  useEffect(() => {
+    if (socket && authUser && authUser._id) {
+      socket.emit("registerUser", authUser._id);
+    }
+  }, [socket, authUser]);
+
+  useEffect(() => {
+    if (latestNotification && authUser) {
+      toast.success(`New notification: ${latestNotification.type === 'follow' ? `@${latestNotification.from.username} started following you` : `Someone liked your post`}`, {
+        icon: latestNotification.type === 'follow' ? '👥' : '❤️',
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    }
+  }, [latestNotification, authUser, queryClient]);
 
   if (isLoading) {
     return (
