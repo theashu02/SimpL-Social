@@ -22,44 +22,59 @@ export const getUserProfile = async (req, res) => {
 
 export const followUnfollowUser = async (req, res) => {
 	try {
-		const { id } = req.params;
-		const userToModify = await User.findById(id);
-		const currentUser = await User.findById(req.user._id);
+		const { id: userToModifyId } = req.params;
+		const currentUserId = req.user._id;
 
-		if (id === req.user._id.toString()) {
+		if (userToModifyId === currentUserId.toString()) {
 			return res.status(400).json({ error: "You can't follow/unfollow yourself" });
 		}
 
+		let userToModify = await User.findById(userToModifyId);
+		let currentUser = await User.findById(currentUserId);
+
 		if (!userToModify || !currentUser) return res.status(400).json({ error: "User not found" });
 
-		const isFollowing = currentUser.following.includes(id);
+		const isFollowing = currentUser.following.includes(userToModifyId);
 
 		if (isFollowing) {
 			// Unfollow the user
-			await User.findByIdAndUpdate(id, { $pull: { followers: req.user._id } });
-			await User.findByIdAndUpdate(req.user._id, { $pull: { following: id } });
-
-			res.status(200).json({ message: "User unfollowed successfully" });
+			await User.findByIdAndUpdate(userToModifyId, { $pull: { followers: currentUserId } });
+			await User.findByIdAndUpdate(currentUserId, { $pull: { following: userToModifyId } });
+			// No notification needed for unfollow
 		} else {
 			// Follow the user
-			await User.findByIdAndUpdate(id, { $push: { followers: req.user._id } });
-			await User.findByIdAndUpdate(req.user._id, { $push: { following: id } });
-			// Send notification to the user
+			await User.findByIdAndUpdate(userToModifyId, { $push: { followers: currentUserId } });
+			await User.findByIdAndUpdate(currentUserId, { $push: { following: userToModifyId } });
+			
+			// Send notification to the user being followed
 			const newNotification = new Notification({
 				type: "follow",
-				from: req.user._id,
-				to: userToModify._id,
+				from: currentUserId,
+				to: userToModifyId,
 			});
-
 			await newNotification.save();
-			// Emit socket event
-			const receiverSocketId = getSockets(userToModify._id.toString());
-			if (receiverSocketId) {
-				io.to(receiverSocketId).emit("newNotification", newNotification);
-			}
 
-			res.status(200).json({ message: "User followed successfully" });
+			const receiverSocketId = getSockets(userToModifyId);
+			if (receiverSocketId) {
+				// Populate 'from' user for the notification before sending via socket
+				const populatedNotification = await Notification.findById(newNotification._id)
+					.populate({ path: "from", select: "username profileImg" });
+				io.to(receiverSocketId).emit("newNotification", populatedNotification);
+			}
 		}
+
+		// Fetch updated user data for both users
+		const updatedUserToModify = await User.findById(userToModifyId).select("-password");
+		const updatedCurrentUser = await User.findById(currentUserId).select("-password");
+
+		// Emit socket event with both updated user profiles
+		io.emit("userProfileUpdate", { updatedUserToModify, updatedCurrentUser });
+
+		// Send a success message or the updated current user (e.g., for their following list)
+		res.status(200).json({ 
+			message: isFollowing ? "User unfollowed successfully" : "User followed successfully",
+			updatedCurrentUser // Optional: send back updated current user
+		});
 	} catch (error) {
 		console.log("Error in followUnfollowUser: ", error.message);
 		res.status(500).json({ error: error.message });

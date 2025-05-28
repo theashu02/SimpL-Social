@@ -38,7 +38,7 @@ function App() {
     retry: false,
   });
 
-  const { socket, latestNotification, updatedPostFromSocket, deletedPostIdFromSocket } = useSocketContext();
+  const { socket, latestNotification, updatedPostFromSocket, deletedPostIdFromSocket, updatedUserProfileFromSocket } = useSocketContext();
 
   useEffect(() => {
     if (socket && authUser && authUser._id) {
@@ -90,6 +90,21 @@ function App() {
       });
     }
   }, [deletedPostIdFromSocket, queryClient]);
+
+  useEffect(() => {
+    if (updatedUserProfileFromSocket && updatedUserProfileFromSocket.updatedUserToModify) {
+      const { updatedUserToModify, updatedCurrentUser } = updatedUserProfileFromSocket;
+
+      const currentProfileData = queryClient.getQueryData(["userProfile"]);
+      if (currentProfileData && currentProfileData._id === updatedUserToModify._id) {
+        queryClient.setQueryData(["userProfile"], updatedUserToModify);
+      }
+
+      if (authUser && updatedCurrentUser && authUser._id === updatedCurrentUser._id) {
+        queryClient.setQueryData(["authUser"], updatedCurrentUser);
+      }
+    }
+  }, [updatedUserProfileFromSocket, authUser, queryClient]);
 
   if (isLoading) {
     return (
