@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
+import PropTypes from 'prop-types';
 
 import LoadingSpinner from "./LoadingSpinner";
 import { formatPostDate } from "../../utils/date/index";
@@ -59,21 +60,19 @@ const Post = ({ post }) => {
         throw new Error(error);
       }
     },
-    onSuccess: (updatedLikes) => {
-      // this is not the best UX, bc it will refetch all posts
-      // queryClient.invalidateQueries({ queryKey: ["posts"] });
-      // instead, update the cache directly for that post
-      toast.success("Updated");
+    onSuccess: (updatedPostData) => {
+      toast.success("Post interaction updated");
+      
       queryClient.setQueryData(["posts"], (oldData) => {
+        if (!oldData) return [];
         return oldData.map((p) => {
           if (p._id === post._id) {
-            return { ...p, likes: updatedLikes };
+            return updatedPostData;
           }
           return p;
         });
       });
     },
-
     onError: (error) => {
       toast.error(error.message);
     },
@@ -279,4 +278,33 @@ const Post = ({ post }) => {
     </>
   );
 };
+
+Post.propTypes = {
+  post: PropTypes.shape({
+    _id: PropTypes.string.isRequired,
+    text: PropTypes.string,
+    img: PropTypes.string,
+    user: PropTypes.shape({
+      _id: PropTypes.string.isRequired,
+      username: PropTypes.string.isRequired,
+      fullName: PropTypes.string.isRequired,
+      profileImg: PropTypes.string,
+    }).isRequired,
+    likes: PropTypes.arrayOf(PropTypes.string).isRequired,
+    comments: PropTypes.arrayOf(
+      PropTypes.shape({
+        _id: PropTypes.string.isRequired,
+        text: PropTypes.string.isRequired,
+        user: PropTypes.shape({
+          _id: PropTypes.string.isRequired,
+          username: PropTypes.string.isRequired,
+          fullName: PropTypes.string.isRequired,
+          profileImg: PropTypes.string,
+        }).isRequired,
+      })
+    ).isRequired,
+    createdAt: PropTypes.string.isRequired,
+  }).isRequired,
+};
+
 export default Post;

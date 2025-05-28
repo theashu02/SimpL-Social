@@ -38,7 +38,7 @@ function App() {
     retry: false,
   });
 
-  const { socket, latestNotification } = useSocketContext();
+  const { socket, latestNotification, updatedPostFromSocket, deletedPostIdFromSocket } = useSocketContext();
 
   useEffect(() => {
     if (socket && authUser && authUser._id) {
@@ -48,13 +48,48 @@ function App() {
 
   useEffect(() => {
     if (latestNotification && authUser) {
-      toast.success(`New notification: ${latestNotification.type === 'follow' ? `@${latestNotification.from.username} started following you` : `Someone liked your post`}`, {
-        icon: latestNotification.type === 'follow' ? '👥' : '❤️',
-      });
+      let toastMessage = "You have a new notification!";
+      let toastIcon = '🔔';
+
+      if (latestNotification.type === 'follow') {
+        toastMessage = `@${latestNotification.from.username} started following you`;
+        toastIcon = '👥';
+      } else if (latestNotification.type === 'like') {
+        toastMessage = `Someone liked your post`;
+        toastIcon = '❤️';
+      } else if (latestNotification.type === 'comment') {
+        toastMessage = `@${latestNotification.from.username} commented on your post`;
+        toastIcon = '💬';
+      }
+
+      toast.success(toastMessage, { icon: toastIcon });
       
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     }
   }, [latestNotification, authUser, queryClient]);
+
+  useEffect(() => {
+    if (updatedPostFromSocket) {
+      queryClient.setQueryData(["posts"], (oldData) => {
+        if (!oldData) return [];
+        return oldData.map((p) => {
+          if (p._id === updatedPostFromSocket._id) {
+            return updatedPostFromSocket;
+          }
+          return p;
+        });
+      });
+    }
+  }, [updatedPostFromSocket, queryClient]);
+
+  useEffect(() => {
+    if (deletedPostIdFromSocket) {
+      queryClient.setQueryData(["posts"], (oldData) => {
+        if (!oldData) return [];
+        return oldData.filter((p) => p._id !== deletedPostIdFromSocket);
+      });
+    }
+  }, [deletedPostIdFromSocket, queryClient]);
 
   if (isLoading) {
     return (

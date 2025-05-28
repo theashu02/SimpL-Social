@@ -52,7 +52,10 @@ export const deletePost = async (req, res) => {
 			await cloudinary.uploader.destroy(imgId);
 		}
 
-		await Post.findByIdAndDelete(req.params.id);
+		const postId = req.params.id;
+		await Post.findByIdAndDelete(postId);
+
+		io.emit("postDeleted", { postId });
 
 		res.status(200).json({ message: "Post deleted successfully" });
 	} catch (error) {
@@ -81,7 +84,30 @@ export const commentOnPost = async (req, res) => {
 		post.comments.push(comment);
 		await post.save();
 
-		res.status(200).json(post);
+		const populatedPost = await Post.findById(postId)
+			.populate({ path: "user", select: "-password" })
+			.populate({ path: "comments.user", select: "-password" });
+
+		if (post.user.toString() !== userId.toString()) {
+			const newNotification = new Notification({
+				type: "comment",
+				from: userId,
+				to: post.user,
+				postId: postId,
+			});
+			await newNotification.save();
+
+			const populatedNotification = await Notification.findById(newNotification._id)
+				.populate({ path: "from", select: "username profileImg" });
+			const receiverSocketId = getSockets(post.user.toString());
+			if (receiverSocketId) {
+				io.to(receiverSocketId).emit("newNotification", populatedNotification);
+			}
+		}
+
+		io.emit("postCommentUpdate", populatedPost);
+
+		res.status(200).json(populatedPost);
 	} catch (error) {
 		console.log("Error in commentOnPost controller: ", error);
 		res.status(500).json({ error: "Internal server error" });
@@ -93,7 +119,7 @@ export const likeUnlikePost = async (req, res) => {
 		const userId = req.user._id;
 		const { id: postId } = req.params;
 
-		const post = await Post.findById(postId);
+		let post = await Post.findById(postId);
 
 		if (!post) {
 			return res.status(404).json({ error: "Post not found" });
@@ -105,30 +131,44 @@ export const likeUnlikePost = async (req, res) => {
 			// Unlike post
 			await Post.updateOne({ _id: postId }, { $pull: { likes: userId } });
 			await User.updateOne({ _id: userId }, { $pull: { likedPosts: postId } });
-
-			const updatedLikes = post.likes.filter((id) => id.toString() !== userId.toString());
-			res.status(200).json(updatedLikes);
 		} else {
 			// Like post
 			post.likes.push(userId);
 			await User.updateOne({ _id: userId }, { $push: { likedPosts: postId } });
-			await post.save();
+			await post.save(); // Save the post after adding the like
 
-			const notification = new Notification({
-				from: userId,
-				to: post.user,
-				type: "like",
-			});
-			await notification.save();
-
-			const receiverSocketId = getSockets(post.user.toString());
-			if (receiverSocketId) {
-				io.to(receiverSocketId).emit("newNotification", notification);
+			// Send notification to the post owner (only on like, not unlike)
+			if (post.user.toString() !== userId.toString()) { // Don't notify if liking own post
+				const notification = new Notification({
+					from: userId,
+					to: post.user,
+					type: "like",
+					postId: postId, // Optional: include postId
+				});
+				await notification.save();
+				
+				const receiverSocketId = getSockets(post.user.toString());
+				if (receiverSocketId) {
+					// Populate 'from' user for the notification before sending via socket
+					const populatedNotification = await Notification.findById(notification._id)
+						.populate({ path: "from", select: "username profileImg" });
+					io.to(receiverSocketId).emit("newNotification", populatedNotification);
+				}
 			}
-
-			const updatedLikes = post.likes;
-			res.status(200).json(updatedLikes);
 		}
+
+		// Fetch the updated and populated post to send to clients
+		const updatedAndPopulatedPost = await Post.findById(postId)
+			.populate({ path: "user", select: "-password" })
+			.populate({ path: "comments.user", select: "-password" });
+
+		// Emit socket event to update the post for all clients
+		io.emit("postLikeUpdate", updatedAndPopulatedPost);
+
+		// Send the updated post (or just its likes, or a success message) in the HTTP response
+		// Sending the full updated post is consistent
+		res.status(200).json(updatedAndPopulatedPost);
+
 	} catch (error) {
 		console.log("Error in likeUnlikePost controller: ", error);
 		res.status(500).json({ error: "Internal server error" });

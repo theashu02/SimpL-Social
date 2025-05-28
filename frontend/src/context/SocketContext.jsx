@@ -13,6 +13,8 @@ export const SocketContextProvider = ({ children }) => {
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
     const [latestNotification, setLatestNotification] = useState(null);
+    const [updatedPostFromSocket, setUpdatedPostFromSocket] = useState(null);
+    const [deletedPostIdFromSocket, setDeletedPostIdFromSocket] = useState(null);
 
     useEffect(() => {
         const newSocket = io("http://localhost:5000");
@@ -27,6 +29,18 @@ export const SocketContextProvider = ({ children }) => {
             setUnreadNotificationCount(prevCount => prevCount + 1);
         });
 
+        newSocket.on("postCommentUpdate", (updatedPost) => {
+            setUpdatedPostFromSocket(updatedPost);
+        });
+
+        newSocket.on("postDeleted", (data) => {
+            setDeletedPostIdFromSocket(data.postId);
+        });
+
+        newSocket.on("postLikeUpdate", (updatedPost) => {
+            setUpdatedPostFromSocket(updatedPost);
+        });
+
         return () => {
             newSocket.close();
             setSocket(null);
@@ -37,7 +51,7 @@ export const SocketContextProvider = ({ children }) => {
         setUnreadNotificationCount(0);
     };
 
-    return <SocketContext.Provider value={{ socket, onlineUsers, unreadNotificationCount, latestNotification, clearUnreadNotificationCount }}>{children}</SocketContext.Provider>;
+    return <SocketContext.Provider value={{ socket, onlineUsers, unreadNotificationCount, latestNotification, clearUnreadNotificationCount, updatedPostFromSocket, deletedPostIdFromSocket }}>{children}</SocketContext.Provider>;
 };
 
 SocketContextProvider.propTypes = {
