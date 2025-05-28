@@ -3,6 +3,8 @@ import RightPanelSkeleton from "../skeletons/RightPanelSkeleton";
 import { useQuery } from "@tanstack/react-query";
 import useFollow from "../../hooks/useFollow";
 import LoadingSpinner from "./LoadingSpinner";
+import { useSocketContext } from "../../context/SocketContext.jsx";
+import { FaUsers } from 'react-icons/fa';
 
 const RightPanel = () => {
   const { data: suggestedUsers, isLoading } = useQuery({
@@ -22,14 +24,21 @@ const RightPanel = () => {
   });
 
   const { follow, isPending } = useFollow();
+  const { onlineUsers } = useSocketContext();
 
   if (suggestedUsers?.length === 0) return <div className="md:w-64 w-0"></div>;
 
   return (
     <div className="hidden lg:block my-4 mx-2">
       <div className="bg-[#16181C] p-4 rounded-md sticky top-2">
+        <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-700">
+          <FaUsers className="text-green-500 w-5 h-5" />
+          <p className="font-semibold text-green-400">
+            {onlineUsers.length} {onlineUsers.length === 1 ? "User" : "Users"} Online
+          </p>
+        </div>
         <p className="font-bold">Who to follow</p>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 mt-2">
           {/* item */}
           {isLoading && (
             <>

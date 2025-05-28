@@ -38,7 +38,7 @@ function App() {
     retry: false,
   });
 
-  const { socket, latestNotification, updatedPostFromSocket, deletedPostIdFromSocket, updatedUserProfileFromSocket } = useSocketContext();
+  const { socket, latestNotification, updatedPostFromSocket, deletedPostIdFromSocket, updatedUserProfileFromSocket, newPostFromSocket } = useSocketContext();
 
   useEffect(() => {
     if (socket && authUser && authUser._id) {
@@ -105,6 +105,15 @@ function App() {
       }
     }
   }, [updatedUserProfileFromSocket, authUser, queryClient]);
+
+  useEffect(() => {
+    if (newPostFromSocket) {
+      queryClient.setQueryData(["posts"], (oldData) => {
+        if (!oldData) return [newPostFromSocket];
+        return [newPostFromSocket, ...oldData];
+      });
+    }
+  }, [newPostFromSocket, queryClient, authUser]);
 
   if (isLoading) {
     return (

@@ -29,7 +29,17 @@ export const createPost = async (req, res) => {
 		});
 
 		await newPost.save();
-		res.status(201).json(newPost);
+
+		// Populate user details for the new post before sending to clients
+		const populatedNewPost = await Post.findById(newPost._id)
+			.populate({ path: "user", select: "-password" })
+			.populate({ path: "comments.user", select: "-password" }); // Comments will be empty
+
+		// Emit socket event to all clients about the new post
+		io.emit("newPostCreated", populatedNewPost);
+
+		// Respond with the populated new post in the HTTP response as well
+		res.status(201).json(populatedNewPost);
 	} catch (error) {
 		res.status(500).json({ error: "Internal server error" });
 		console.log("Error in createPost controller: ", error);
